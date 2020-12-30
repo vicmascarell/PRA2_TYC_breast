@@ -1,0 +1,81 @@
+# Con read.csv carcamos el fichero
+data <- read.csv('data.csv',stringsAsFactors = FALSE)
+
+# Utilizamos dim para comprobar el número de registros
+dim(data)
+
+# Utilizamos str para ver el tipo de datos
+str(data)
+
+# Imprimos las primeras filas del dataset
+head(data)
+
+# Pasamos a factor diagnosis
+data$diagnosis <- factor(data$diagnosis)
+
+# Comprobamos el resultado
+str(data$diagnosis)
+
+# Sumamos valores vacíos
+colSums(is.na(data))
+
+# Seleccionamos las columnas deseadas
+data <- data[, 2:32]
+
+# Sumamos valores = 0 por columnas
+colSums(data==0)
+
+# Imprimimos las filas que contienen 0 en concave.points_se
+print(data[data$concave.points_se==0,])
+
+# Eliminamos los valores
+data <- data[data$concave.points_se!=0,]
+
+# Comprobamos de nuevo con el sumatoria de "0" y la dimentsión. 
+colSums(data==0)
+dim(data)
+
+# Eliminamos las variables que contienen el SE y el "worst"
+data <- data[, 1:11]
+
+# Sacamos las stats de los outliers
+boxplot.stats(data$radius_mean)
+boxplot.stats(data$texture_mean)
+boxplot.stats(data$perimeter_mean)
+boxplot.stats(data$area_mean)
+boxplot.stats(data$smoothness_mean)
+boxplot.stats(data$compactness_mean)
+boxplot.stats(data$concavity_mean)
+boxplot.stats(data$concave.points_mean)
+boxplot.stats(data$symmetry_mean)
+boxplot.stats(data$fractal_dimension_mean)
+
+# exportamos el dataset a un .csv
+write.csv(data,"clean_breast.csv")
+
+# Comprobamos la normalidad de las variables numéricas con el test shapiro
+shapiro.test(data_scaled$radius_mean)
+shapiro.test(data_scaled$texture_mean)
+shapiro.test(data_scaled$perimeter_mean)
+shapiro.test(data_scaled$area_mean)
+shapiro.test(data_scaled$smoothness_mean)
+shapiro.test(data_scaled$compactness_mean)
+shapiro.test(data_scaled$concavity_mean)
+shapiro.test(data_scaled$concave.points_mean)
+shapiro.test(data_scaled$symmetry_mean)
+shapiro.test(data_scaled$fractal_dimension_mean)
+
+# Creamos el modelo con k-means y k = 2
+data_clusters2 <- kmeans(data_scaled[, 2:11], 2)
+
+# Mostramos la tabla de confusión
+table(data_clusters2$cluster,data_scaled$diagnosis)
+
+# Creamos el modelo de regresión logística
+logit_model <- glm(formula=diagnosis~radius_mean+texture_mean+perimeter_mean+area_mean+smoothness_mean+compactness_mean+concavity_mean+concave.points_mean+symmetry_mean+fractal_dimension_mean, data=data_scaled, family=binomial)                
+summary(logit_model)
+
+# Importamos caret y creamos la matriz de confusión
+library(caret)
+confusionMatrix(table(predict(logit_model, type="response") >= 0.5,data_scaled$diagnosis == "M"))
+
