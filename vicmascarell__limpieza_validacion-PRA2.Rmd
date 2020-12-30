@@ -1,0 +1,287 @@
+---
+title: 'Práctica 2: Limpieza y análisis de datos'
+author: "Autor: Victor Mascarell Ascó"
+date: "1 de enero 2020"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+      in_header: header_TYC.html
+  word_document: default
+  pdf_document:
+    highlight: zenburn
+    toc: yes 
+---
+
+******
+# Descripción del dataset
+******
+
+En esta segunda práctica enmarcada dentro de la asignatura Tipología y Ciclo de Vida del Dato del Master en ciencia de datos de la UOC vamos a tratar el Dataset Cancer Breast que podemos encontrar en el siguiente enlace del repositorio de Kaggle: https://www.kaggle.com/uciml/breast-cancer-wisconsin-data.
+
+El dataset contiene 569 registros de casos de cáncer de pecho con 30 atributos descriptivos de los mismos, 1 atributo clasificatorio en función de si el tumor es benigno o maligno y un atributo de ID. Los atributos descriptivos describen al media (mean), error estándar (se) y la media de los tres valores más grandes (worst) de las células del tumor a través de 10 de sus características. Así las 30 variables descriptivas sería:
+
+1. radius_mean (Variable continúa)
+2. texture_mean (Variable continúa)
+3. perimeter_mean (Variable continúa)
+4. area_mean (Variable continúa)
+5. smoothness_mean (Variable continúa)
+6. compactness_mean (Variable continúa)
+7. concavity_mean (Variable continúa)
+8. concave.points_mean (Variable continúa)
+9. symmetry_mean (Variable continúa)
+10. fractal_dimension_mean (Variable continúa)
+11. radius_se (Variable continúa)
+12. texture_se (Variable continúa)
+13. perimeter_se (Variable continúa)
+14. area_se (Variable continúa)
+15. smoothness_se (Variable continúa)
+16. compactness_se (Variable continúa)
+17. concavity_se (Variable continúa)
+18. concave.points_se  (Variable continúa)
+19. symmetry_se (Variable continúa)
+20. fractal_dimension_se (Variable continúa)
+21. radius_worst  (Variable continúa)
+22. texture_worst (Variable continúa)
+23. perimeter_worst (Variable continúa)
+24. area_worst (Variable continúa)
+25. smoothness_worst (Variable continúa)
+26. compactness_worst (Variable continúa)
+27. concavity_worst (Variable continúa)
+28. concave.points_worst (Variable continúa)
+29. symmetry_worst (Variable continúa)
+30. fractal_dimension_worst (Variable continúa):
+
+Los otros campos serían: 
+31. id (Dato continúo): Indentificador único.
+32. diagnosis (Dato categórico):  Diagnóstico.
+
+Este dataset es importante ya que nos ofrece la información necesario de casos de cáncer de mama anteriores, lo que nos puede ayudar a construir un modelo predictivo para diagnosticar si los tumores de mama encontrados son malignos o benignos. Así, el objetivo final será crear un modelo que nos permita clasificar y predecir si el cáncer de mama es maligno o benigno.
+
+
+******
+# Integración y selección de los datos de interés a analizar
+******
+
+Para realizar el modelo descartaremos la variable de ID, ya que no nos aporta información alguna sobre las posibles características del tumor. Y por otro lado dejaremos la variable clasificatoria para comprobar la fiabilidad del modelo. No obstante, en los siguientes apartados, también utilizaremos la variable clasificatoria para analizar los datos y concluir que variables descriptivas son las más adecuadas para construir el modelo. 
+
+******
+# Limpieza de los datos
+******
+
+## Lectura y carga de datos
+
+En primer lugar procedemos a cargar el fichero de datos. Observar si los datos se han cargado correctamente. 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Con read.csv carcamos el fichero
+data <- read.csv('data.csv',stringsAsFactors = FALSE)
+
+# Utilizamos dim para comprobar el número de registros
+dim(data)
+
+# Utilizamos str para ver el tipo de datos
+str(data)
+
+# Imprimos las primeras filas del dataset
+head(data)
+```
+
+Podemos comprobar que los datos se han cargado correctamente a excepción de la variable diagnosis que nos interesaría tenerla en factor y nos la carga con char . También nos ha cargado un atributo de más (X) que parece contener valores nulos. Este lo trataremos en el siguiente apartado. Ahora procederemos a cambiar el tipo de dato de diagnosis a factor
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Pasamos a factor diagnosis
+data$diagnosis <- factor(data$diagnosis)
+
+# Comprobamos el resultado
+str(data$diagnosis)
+```
+
+## ¿Los datos contienen ceros o elementos vacíos?
+
+Procedemos a calcular los valores vacíos de cada atributo
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Sumamos valores vacíos
+colSums(is.na(data))
+```
+
+Podemos comprobar que la última columna es un error de carga y solo contiene valores vacíos por lo que procedemos a eliminarla, aprovechamos para eliminar también id. Si tuviéramos valores vacíos dentro de los campos de interés podríamos optar por sustituirlos por la media o eliminar el registro en función del interés.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Seleccionamos las columnas deseadas
+data <- data[, 2:32]
+```
+
+De la misma forma vamos a comprobar si existen 0 en los atributos del dataset.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Sumamos valores = 0 por columnas
+colSums(data==0)
+
+```
+
+Observamos que sí. Comprobamos si los registros que contienen 0 son los mismos.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Imprimimos las filas que contienen 0 en concave.points_se
+print(data[data$concave.points_se==0,])
+```
+
+Son la mismas filas y como vemos la media, el error estándar y el “worst” dan 0, caso bastante improbable. Procedemos a eliminar estos registros del dataset ya que contiene más de 500.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Eliminamos los valores
+data <- data[data$concave.points_se!=0,]
+
+# Comprobamos de nuevo con el sumatoria de "0" y la dimentsión. 
+colSums(data==0)
+dim(data)
+```
+
+Para la predicción utilizaremos la media de las características, ya que se considera más representativa en este caso. Por lo que vamos a proceder a eliminar las columnas relacionadas con contienen el error estándar y los peores valores o “worst”, quedándonos solo con 10 variables.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Eliminamos las variables que contienen el SE y el "worst"
+data <- data[, 1:11]
+
+```
+
+## Tratamiento de valores extremos
+
+A continuación procedemos a observar los valores extremos o outliers
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+boxplot.stats(data$radius_mean)
+boxplot.stats(data$texture_mean)
+boxplot.stats(data$perimeter_mean)
+boxplot.stats(data$area_mean)
+boxplot.stats(data$smoothness_mean)
+boxplot.stats(data$compactness_mean)
+boxplot.stats(data$concavity_mean)
+boxplot.stats(data$concave.points_mean)
+boxplot.stats(data$symmetry_mean)
+boxplot.stats(data$fractal_dimension_mean)
+```
+
+Observamos que aparecen algunos valores extremos, no obstante asumimos que estos valores son factibles y que se pueden dar casos que generen que el área de la célula, por ejemplo, sea más grande. Esto puede ser un factor influyente en el diagnóstico, por lo que inicialmente se decide no tratar los valores extremos. Más adelante si resultará contraproducente para la predicción, se tomarían medidas.
+
+Procedemos a guardar el dataset en un documento en formato .csv
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+write.csv(data,"clean_breast.csv")
+```
+
+******
+# Análisis de los datos
+******
+
+## Selección de los grupos de datos a analizar
+
+Antes que nada vamos a estandarizar las variables numéricas. 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+# Importamos la libreria dplyr y ggplot2
+library(dplyr)
+library(ggplot2)
+
+# Utilizaremos mutate_if y luego is.numeric, ya que tenemos variables continuas
+data_scaled <- mutate_if(data, is.numeric, scale)
+
+```
+
+A continuación sacaremos las correlaciones entre las variables numéricas:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+cor(data[, 2:11])
+
+```
+
+Observamos que radius_mean se relaciona fuertemente con perimeter_mean (0.997), area_mean (0.988) y concave.points_mean (0.817). concave.points_mean se relaciona fuertemente con concavity_mean (0.9189655), perimeter_mean (0.9189655) y compactness_mean (0.8265946). 
+
+Procedemos a graficar las distintas variables junto con la variable clasificatoria para hacer una primera estimación de cuales serán las variables con más peso. 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+ggplot(data = data_scaled,aes(x=radius_mean,fill=diagnosis))+geom_histogram(binwidth =1)
+ggplot(data = data_scaled,aes(x=texture_mean,fill=diagnosis))+geom_histogram(binwidth =1)
+ggplot(data = data_scaled,aes(x=perimeter_mean,fill=diagnosis))+geom_histogram(binwidth =1)
+ggplot(data = data_scaled,aes(x=area_mean,fill=diagnosis))+geom_histogram(binwidth =1)
+ggplot(data = data_scaled,aes(x=smoothness_mean,fill=diagnosis))+geom_histogram(binwidth =1)
+ggplot(data = data_scaled,aes(x=compactness_mean,fill=diagnosis))+geom_histogram(binwidth =1)
+ggplot(data = data_scaled,aes(x=concavity_mean,fill=diagnosis))+geom_histogram(binwidth =1)
+ggplot(data = data_scaled,aes(x=concave.points_mean,fill=diagnosis))+geom_histogram(binwidth =1)
+ggplot(data = data_scaled,aes(x=symmetry_mean,fill=diagnosis))+geom_histogram(binwidth =1)
+ggplot(data = data_scaled,aes(x=fractal_dimension_mean,fill=diagnosis))+geom_histogram(binwidth =1)
+
+```
+
+Se observa que radius_mean, perimeter_mean, area_mean, concave.points_mean y compactness_mean podrían ser relevantes para explicar el diagnóstico Ya que a partir de un cierto nivel solo encontramos registros de un tipo u de otro. 
+
+## Comprobación de la normalidad y homogeneidad de la varianza
+
+Para comprobar la normalidad utilizaremos  el test Saphiro
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+shapiro.test(data_scaled$radius_mean)
+shapiro.test(data_scaled$texture_mean)
+shapiro.test(data_scaled$perimeter_mean)
+shapiro.test(data_scaled$area_mean)
+shapiro.test(data_scaled$smoothness_mean)
+shapiro.test(data_scaled$compactness_mean)
+shapiro.test(data_scaled$concavity_mean)
+shapiro.test(data_scaled$concave.points_mean)
+shapiro.test(data_scaled$symmetry_mean)
+shapiro.test(data_scaled$fractal_dimension_mean)
+```
+
+De acuerdo con el test de Shapiro, no podemos asumir normalidad en ninguna de las variables, ya que el p-valor es menor que 0.05. No obstante de acuerdo con el teorema del limite central, para muestras grandes (n > 30) podemos asumir normalidad. 
+
+## Aplicación de pruebas estadísticas para comparar los grupos de datos
+
+A continuación vamos a utilizar el algoritmo k-means para crear un modelo predictivo. Utilizaremos k = 2 ya que sabemos de antemano que k sería 2 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+data_clusters2 <- kmeans(data_scaled[, 2:11], 2)
+
+table(data_clusters2$cluster,data_scaled$diagnosis)
+
+```
+
+Podemos ver que el modelo con k-means, ha clasificado correctamente 340 resultados benignos y 162 resultados malignos, con una precisión del modelo de cerca del 90%. 
+
+A continuación vamos a aplicar un modelo de regresión logística. 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+logit_model <- glm(formula=diagnosis~radius_mean+texture_mean+perimeter_mean+area_mean+smoothness_mean+compactness_mean+concavity_mean+concave.points_mean+symmetry_mean+fractal_dimension_mean, data=data_scaled, family=binomial)
+                   
+summary(logit_model)
+library(caret)
+confusionMatrix(table(predict(logit_model, type="response") >= 0.5,data_scaled$diagnosis == "M"))
+```
+
+
+******
+# Conclusiones
+******
+
+Podemos concluir que el modelo de regresión logística clasifica de mejor forma los datos que el modelo basado en k-means. Con el primero obtenemos una precisión cercana al 95% mientras que con k-means nos quedamos en el 90%. 
+
+******
+# Contribuciones al trabajo
+******
+
+| CONTRIBUCIONES | FIRMA |
+| ---------- | ---------- |
+| Investigación previa  | Victor Mascarell Ascó   |
+| Redacción de las respuestas  | Victor Mascarell Ascó   |
+| Desarrollo código  | Victor Mascarell Ascó   |
